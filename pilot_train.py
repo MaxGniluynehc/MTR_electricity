@@ -1,6 +1,6 @@
 import os
 from RNN_iSLR import RNNiSLR
-from load_data import iter_lms_KBD, iter_lms_TIS, fit_iterative_SLR, MTRiSLRDataset, train_test_split
+from load_data import iter_lms_KBD, iter_lms_KBD_subs, iter_lms_TIS, fit_iterative_SLR, MTRiSLRDataset, train_test_split
 import torch as tc
 from torch.utils.data import DataLoader
 from torch.nn import MSELoss, HuberLoss
@@ -15,15 +15,21 @@ from train_RNNiSLR import train_model, eval_model
 
 seq_len = 5
 KBD_pilot = iter_lms_KBD[:5000,:]
+KBD_subs_pilot = iter_lms_KBD_subs[:5000,:]
 
 KBD_train, KBD_test = train_test_split(KBD_pilot, 0.3, seq_len)
+KBD_subs_train, KBD_subs_test = train_test_split(KBD_subs_pilot, 0.3, seq_len)
 
 scaler = StandardScaler()
 KBD_train_sc = scaler.fit_transform(KBD_train)
+KBD_subs_train_sc = scaler.fit_transform(KBD_subs_train)
 KBD_test_sc = scaler.fit_transform(KBD_test)
+KBD_subs_test_sc = scaler.fit_transform(KBD_subs_test)
 
-ds_train = MTRiSLRDataset(tc.tensor(KBD_train_sc, dtype=tc.float32), "KBD", seq_len)
-ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_len)
+# ds_train = MTRiSLRDataset(tc.tensor(KBD_train_sc, dtype=tc.float32), "KBD", seq_len)
+ds_train = MTRiSLRDataset(tc.tensor(KBD_train_sc, dtype=tc.float32), "KBD", seq_len, data_incycle=tc.tensor(KBD_subs_train_sc, dtype=tc.float32))
+# ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_len)
+ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_len, data_incycle=tc.tensor(KBD_subs_test_sc, dtype=tc.float32))
 dl_train = DataLoader(ds_train, batch_size=15, shuffle=False, drop_last=True)
 dl_test = DataLoader(ds_test, batch_size=10, shuffle=False, drop_last=True)
 # len(list(dl_train))
@@ -46,14 +52,14 @@ class TraininngLoss(tc.nn.Module):
         # tc.tensor([loss_intercept, loss_coef, loss_stepsize], requires_grad=True).matmul(self.channel_weights)
 
 
-self = RNNiSLR(6, 3, 6, True, device="cpu")
+self = RNNiSLR(6, 3, 6, False, device="cpu")
 # self.load_state_dict(tc.load("checkpoints/pilot3/pilot3_att_m4m4m2", map_location="cpu"))
 loss = TraininngLoss(name="m_m_m", channel_weights=tc.tensor([0.4, 0.4, 0.2]))
 optim = Adam(self.parameters(), lr=1*1e-4, betas=(0.9, 0.999))
 
 s = time.time()
 train_losses, eval_losses, preds = None, None, None
-train_losses, eval_losses, preds = train_model(dl_train, dl_test, self, loss, optim, 500,
+train_losses, eval_losses, preds = train_model(dl_train, dl_test, self, loss, optim, 10,
                                                train_losses, eval_losses)
 print("Time elasped: {} min".format((time.time() - s) / 60))
 
