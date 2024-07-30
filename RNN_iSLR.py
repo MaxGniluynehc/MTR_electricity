@@ -9,7 +9,7 @@ class RNNiSLR(Module):
     data: [seq_len, batch_size, 3], 3 corresponds to [intercept, coef, step_size]
 
     """
-    def __init__(self, in_size, num_hidden, hidden_dim, use_attention=False, device=None):
+    def __init__(self, in_size, num_hidden, hidden_dim, n_features=3, use_attention=False, device=None):
         super(RNNiSLR, self).__init__()
         if device is None and tc.cuda.is_available():
             self.device = "cuda: 2"
@@ -23,8 +23,9 @@ class RNNiSLR(Module):
         self.dropout_p = [0.5, 0.3] if self.training else [0,0]
         self.num_hidden = num_hidden
         self.hidden_dim = hidden_dim
+        self.n_features = n_features
 
-        self.fc_in = Linear(3, in_size, device=self.device)
+        self.fc_in = Linear(self.n_features, in_size, device=self.device)
         self.lstm_enc = LSTM(input_size=in_size, hidden_size=hidden_dim, num_layers=num_hidden, dropout=self.dropout_p[1], device=self.device)
 
         self.use_attention = use_attention

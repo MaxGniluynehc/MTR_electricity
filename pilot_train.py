@@ -1,6 +1,7 @@
 import os
 from RNN_iSLR import RNNiSLR
-from load_data import iter_lms_KBD, iter_lms_KBD_subs, iter_lms_TIS, fit_iterative_SLR, MTRiSLRDataset, train_test_split
+from load_data import iter_lms_KBD, iter_lms_KBD_subs, peak_features_KBD
+from data_util_fn import MTRiSLRDataset, train_test_split
 import torch as tc
 from torch.utils.data import DataLoader
 from torch.nn import MSELoss, HuberLoss
@@ -11,60 +12,54 @@ import time
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from train_RNNiSLR import train_model, eval_model
-
+from loss_fn import TraininngLoss
 
 seq_len = 5
 KBD_pilot = iter_lms_KBD[:5000,:]
 KBD_subs_pilot = iter_lms_KBD_subs[:5000,:]
+KBD_peaks_pilot = peak_features_KBD[:5000, :]
 
 KBD_train, KBD_test = train_test_split(KBD_pilot, 0.3, seq_len)
 KBD_subs_train, KBD_subs_test = train_test_split(KBD_subs_pilot, 0.3, seq_len)
+KBD_peaks_train, KBD_peaks_test = train_test_split(KBD_peaks_pilot, 0.3, seq_len)
 
 scaler = StandardScaler()
-KBD_train_sc = scaler.fit_transform(KBD_train)
-KBD_subs_train_sc = scaler.fit_transform(KBD_subs_train)
-KBD_test_sc = scaler.fit_transform(KBD_test)
-KBD_subs_test_sc = scaler.fit_transform(KBD_subs_test)
+KBD_train_sc, KBD_test_sc = scaler.fit_transform(KBD_train), scaler.fit_transform(KBD_test)
+KBD_peaks_train_sc, KBD_peaks_test_sc = scaler.fit_transform(KBD_peaks_train), scaler.fit_transform(KBD_peaks_test)
+
+scaler_subs = StandardScaler()
+KBD_subs_train_sc, KBD_subs_test_sc = scaler_subs.fit_transform(KBD_subs_train), scaler_subs.fit_transform(KBD_subs_test)
 
 # ds_train = MTRiSLRDataset(tc.tensor(KBD_train_sc, dtype=tc.float32), "KBD", seq_len)
-ds_train = MTRiSLRDataset(tc.tensor(KBD_train_sc, dtype=tc.float32), "KBD", seq_len, data_incycle=tc.tensor(KBD_subs_train_sc, dtype=tc.float32))
+ds_train = MTRiSLRDataset(tc.tensor(KBD_train_sc, dtype=tc.float32), "KBD", seq_len,
+                          data_incycle=tc.tensor(KBD_subs_train_sc, dtype=tc.float32),
+                          peak_features=tc.tensor(KBD_peaks_train_sc, dtype=tc.float32))
 # ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_len)
-ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_len, data_incycle=tc.tensor(KBD_subs_test_sc, dtype=tc.float32))
+ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_len,
+                         data_incycle=tc.tensor(KBD_subs_test_sc, dtype=tc.float32),
+                         peak_features=tc.tensor(KBD_peaks_test_sc, dtype=tc.float32))
 dl_train = DataLoader(ds_train, batch_size=15, shuffle=False, drop_last=True)
 dl_test = DataLoader(ds_test, batch_size=10, shuffle=False, drop_last=True)
-# len(list(dl_train))
-# len(list(dl_test))
-# next(iter(dl_train)).shape
 
 
-class TraininngLoss(tc.nn.Module):
-    def __init__(self, reduction="mean", channel_weights = tc.ones(3)/3, name=None):
-        super().__init__()
-        self.reduction = reduction
-        self.channel_weights = channel_weights if channel_weights.sum()== 1 else channel_weights/channel_weights.sum()
-        self.name = name
 
-    def forward(self, input:tc.Tensor, target:tc.Tensor)-> tc.Tensor:
-        loss_intercept = mse_loss(input[:,0], target[:,0], reduction=self.reduction)
-        loss_coef = mse_loss(input[:,1], target[:,1], reduction=self.reduction)
-        loss_stepsize = huber_loss(input[:,2], target[:,2], reduction=self.reduction)
-        return loss_intercept*self.channel_weights[0] + loss_coef*self.channel_weights[1] + loss_stepsize*self.channel_weights[2]
-        # tc.tensor([loss_intercept, loss_coef, loss_stepsize], requires_grad=True).matmul(self.channel_weights)
+pilot_name = "pilot5"
+model_name = "_att_m4m4m2"
 
-
-self = RNNiSLR(6, 3, 6, False, device="cpu")
-# self.load_state_dict(tc.load("checkpoints/pilot3/pilot3_att_m4m4m2", map_location="cpu"))
+self = RNNiSLR(6, 3, 6, 6,True, device="cpu")
+# self.load_state_dict(tc.load("checkpoints/{}/{}{}".format(pilot_name, pilot_name, model_name), map_location="cpu"))
 loss = TraininngLoss(name="m_m_m", channel_weights=tc.tensor([0.4, 0.4, 0.2]))
 optim = Adam(self.parameters(), lr=1*1e-4, betas=(0.9, 0.999))
 
-s = time.time()
-train_losses, eval_losses, preds = None, None, None
-train_losses, eval_losses, preds = train_model(dl_train, dl_test, self, loss, optim, 10,
-                                               train_losses, eval_losses)
-print("Time elasped: {} min".format((time.time() - s) / 60))
 
-pilot_name = "pilot3"
-model_name = "_att_m4m4m2"
+train_self = False
+if train_self:
+    s = time.time()
+    train_losses, eval_losses, preds = None, None, None
+    train_losses, eval_losses, preds = train_model(dl_train, dl_test, self, loss, optim, 2,
+                                                   train_losses, eval_losses)
+    print("Time elasped: {} min".format((time.time() - s) / 60))
+
 
 save_trained = False
 if save_trained:
@@ -73,6 +68,7 @@ if save_trained:
     tc.save(preds, "checkpoints/{}/{}{}_preds".format(pilot_name, pilot_name, model_name))
     np.array(train_losses).tofile("checkpoints/{}/{}{}_train_losses".format(pilot_name, pilot_name, model_name))
     np.array(eval_losses).tofile("checkpoints/{}/{}{}_eval_losses".format(pilot_name, pilot_name, model_name))
+
 
 plot_results=False
 if plot_results:
@@ -83,8 +79,8 @@ if plot_results:
 
     os.makedirs("plots/{}/".format(pilot_name), exist_ok=True)
 
-    # train_losses = np.fromfile("checkpoints/pilot3/pilot3_att_m4m4m2_train_losses")
-    # eval_losses = np.fromfile("checkpoints/pilot3/pilot3_att_m4m4m2_eval_losses")
+    train_losses = np.fromfile("checkpoints/{}/{}_att_m4m4m2_train_losses".format(pilot_name, pilot_name))
+    eval_losses = np.fromfile("checkpoints/{}/{}_att_m4m4m2_eval_losses".format(pilot_name, pilot_name))
 
     fig,ax = plt.subplots(1,1)
     ax.plot(train_losses)
