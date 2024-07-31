@@ -1,4 +1,7 @@
 import os
+
+import numpy as np
+
 from RNN_iSLR import RNNiSLR
 from load_data import iter_lms_KBD, iter_lms_TIS
 from data_util_fn import MTRiSLRDataset, train_test_split, fit_iterative_SLR
@@ -151,7 +154,4 @@ def train_model(dl_train:tc.utils.data.DataLoader, dl_test:tc.utils.data.DataLoa
         epoch_iter.set_description("Training epoch {}/{}, train loss = {:.4f}, eval loss = {:.4f}".format(epoch, Nepoch, train_loss_in_epoch, eval_loss_in_epoch))
 
     return train_losses, eval_losses, preds
-
-
-
 

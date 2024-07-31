@@ -43,19 +43,28 @@ ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_le
 dl_train = DataLoader(ds_train, batch_size=15, shuffle=False, drop_last=True)
 dl_test = DataLoader(ds_test, batch_size=10, shuffle=False, drop_last=True)
 
-pilot_name = "pilot6"
-model_name = "_att_m4m4h2"
+pilot_name = "pilot6_1"
+model_name = "_att_l4m4h2"
+continuous_training = False
 
 self = RNNiSLR(6, 3, 6, 3,3, True, device="cpu")
-# self.load_state_dict(tc.load("checkpoints/{}/{}{}".format(pilot_name, pilot_name, model_name), map_location="cpu"))
-loss = TraininngLoss(name="m_m_m", channel_weights=tc.tensor([0.4, 0.4, 0.2]))
+if continuous_training:
+    print("Loading saved model for continuous training...")
+    self.load_state_dict(tc.load("checkpoints/{}/{}{}".format(pilot_name, pilot_name, model_name), map_location="cpu"))
+loss = TraininngLoss(name="l_m_h", channel_weights=tc.tensor([0.4, 0.4, 0.2]), loss_fn_names=["l1_loss", "mse_loss", "huber_loss"])
 optim = Adam(self.parameters(), lr=1*1e-4, betas=(0.9, 0.999))
 
 
 train_self = False
 if train_self:
     s = time.time()
-    train_losses, eval_losses, preds = None, None, None
+    if not continuous_training:
+        train_losses, eval_losses, preds = None, None, None
+    else:
+        print("Loading saved train_losses and eval_losses for continuous training...")
+        train_losses = np.fromfile("checkpoints/{}/{}{}_train_losses".format(pilot_name, pilot_name, model_name)).tolist()
+        eval_losses = np.fromfile("checkpoints/{}/{}{}_eval_losses".format(pilot_name, pilot_name, model_name)).tolist()
+
     train_losses, eval_losses, preds = train_model(dl_train, dl_test, self, loss, optim, 2,
                                                    train_losses, eval_losses)
     print("\n Time elasped: {} min".format((time.time() - s) / 60))
