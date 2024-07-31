@@ -1,6 +1,8 @@
 import torch as tc
 from torch.nn.functional import mse_loss, huber_loss
 
+getattr(tc.nn.functional, "l1_loss")(tc.randn([3,2,5]), tc.randn([3,2,5]))
+
 
 class TraininngLoss(tc.nn.Module):
     def __init__(self, reduction="mean", channel_weights = tc.ones(3)/3, name=None):

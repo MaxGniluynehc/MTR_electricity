@@ -10,23 +10,6 @@ from tqdm import tqdm
 import time
 
 
-# seq_len = 5
-# KBD_pilot = iter_lms_KBD[:5000,:]
-# KBD_subs_pilot = iter_lms_KBD_subs[:5000,:]
-#
-# KBD_train, KBD_test = train_test_split(KBD_pilot, 0.3, seq_len)
-# KBD_subs_train, _ = train_test_split(KBD_subs_pilot, 0.3, seq_len)
-#
-# scaler = StandardScaler()
-# KBD_train_sc = scaler.fit_transform(KBD_train)
-# KBD_subs_train_sc = scaler.fit_transform(KBD_subs_train)
-# # KBD_test_sc = scaler.fit_transform(KBD_test)
-#
-# ds_train = MTRiSLRDataset(tc.tensor(KBD_train_sc, dtype=tc.float32), "KBD", seq_len, data_incycle=tc.tensor(KBD_subs_train_sc, dtype=tc.float32))
-# # ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_len)
-# dl_train = DataLoader(ds_train, batch_size=15, shuffle=False, drop_last=True)
-# dl_test = DataLoader(ds_test, batch_size=10, shuffle=False, drop_last=True)
-
 def train_one_epoch(dl:tc.utils.data.DataLoader, model:RNNiSLR, loss:tc.nn.modules.loss, optim:tc.optim):
     loss_in_epoch = 0
     model.train(True)
@@ -68,10 +51,11 @@ def train_one_epoch(dl:tc.utils.data.DataLoader, model:RNNiSLR, loss:tc.nn.modul
                 else:
                     input_b = xbb # input_b: [batch_size, seq_len, 3]
 
-                if dl.dataset.peak_features is not None:
-                    input_b = tc.concatenate([input_b, xb_peak], dim=-1) # input_b: [batch_size, seq_len, 3+num_peak_features]
+                # if dl.dataset.peak_features is not None:
+                #     input_b = tc.concatenate([input_b, xb_peak], dim=-1) # input_b: [batch_size, seq_len, 3+num_peak_features]
+
                 optim.zero_grad()
-                lb_sub = loss(model.forward(input_b.swapdims(1,0)), xb_tgt)
+                lb_sub = loss(model.forward(x=input_b.swapdims(1,0), y=xb_peak.swapdims(1,0)), xb_tgt)
                 lb_sub.backward()
                 optim.step()
                 lb += lb_sub
@@ -126,9 +110,9 @@ def eval_model(dl:tc.utils.data.DataLoader, model:RNNiSLR, loss:tc.nn.modules.lo
                 else:
                     input_b = xbb # input_b: [batch_size, seq_len, 3]
 
-                if dl.dataset.peak_features is not None:
-                    input_b = tc.concatenate([input_b, xb_peak], dim=-1) # input_b: [batch_size, seq_len, 3+num_peak_features]
-                xb_pred = model.forward(input_b.swapdims(1,0))
+                # if dl.dataset.peak_features is not None:
+                #     input_b = tc.concatenate([input_b, xb_peak], dim=-1) # input_b: [batch_size, seq_len, 3+num_peak_features]
+                xb_pred = model.forward(x=input_b.swapdims(1,0), y=xb_peak.swapdims(1,0))
                 xb_preds[sb,:,:] = xb_pred
                 lb_sub = loss(xb_pred, xb_tgt)
                 lb += lb_sub
@@ -168,32 +152,6 @@ def train_model(dl_train:tc.utils.data.DataLoader, dl_test:tc.utils.data.DataLoa
 
     return train_losses, eval_losses, preds
 
-
-
-# if __name__ == '__main__':
-#     seq_len = 5
-#     KBD_train, KBD_test = train_test_split(iter_lms_KBD, 0.3, seq_len)
-#
-#     ds_train = MTRiSLRDataset(tc.tensor(KBD_train, dtype=tc.float32), "KBD", seq_len)
-#     ds_test = MTRiSLRDataset(tc.tensor(KBD_test, dtype=tc.float32), "KBD", seq_len)
-#     dl_train = DataLoader(ds_train, batch_size=10, shuffle=False, drop_last=True)
-#     dl_test = DataLoader(ds_test, batch_size=10, shuffle=False, drop_last=True)
-#     # next(iter(dl)).shape
-#     self = RNNiSLR(6,3,6,False)
-#     loss = MSELoss()
-#     optim = Adam(self.parameters(), lr=1e-3)
-#
-#     # train_loss = train_one_epoch(dl_train, self, loss, optim)
-#     #
-#     # eval_loss, x_pred = eval_model(dl_test, self, loss)
-#
-#     s = time.time()
-#     train_losses, eval_losses, preds = train_model(dl_train, dl_test, self, loss, optim, 50)
-#     print("Time elasped: {} min".format((time.time() - s)/60))
-#
-#     os.makedirs("checkpoints", exist_ok=True)
-#     tc.save(self.state_dict(), "checkpoints/m1")
-#     import argparse
 
 
 

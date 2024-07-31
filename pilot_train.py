@@ -25,7 +25,9 @@ KBD_peaks_train, KBD_peaks_test = train_test_split(KBD_peaks_pilot, 0.3, seq_len
 
 scaler = StandardScaler()
 KBD_train_sc, KBD_test_sc = scaler.fit_transform(KBD_train), scaler.fit_transform(KBD_test)
-KBD_peaks_train_sc, KBD_peaks_test_sc = scaler.fit_transform(KBD_peaks_train), scaler.fit_transform(KBD_peaks_test)
+
+scaler_peaks = StandardScaler()
+KBD_peaks_train_sc, KBD_peaks_test_sc = scaler_peaks.fit_transform(KBD_peaks_train), scaler_peaks.fit_transform(KBD_peaks_test)
 
 scaler_subs = StandardScaler()
 KBD_subs_train_sc, KBD_subs_test_sc = scaler_subs.fit_transform(KBD_subs_train), scaler_subs.fit_transform(KBD_subs_test)
@@ -41,12 +43,10 @@ ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_le
 dl_train = DataLoader(ds_train, batch_size=15, shuffle=False, drop_last=True)
 dl_test = DataLoader(ds_test, batch_size=10, shuffle=False, drop_last=True)
 
+pilot_name = "pilot6"
+model_name = "_att_m4m4h2"
 
-
-pilot_name = "pilot5"
-model_name = "_att_m4m4m2"
-
-self = RNNiSLR(6, 3, 6, 6,True, device="cpu")
+self = RNNiSLR(6, 3, 6, 3,3, True, device="cpu")
 # self.load_state_dict(tc.load("checkpoints/{}/{}{}".format(pilot_name, pilot_name, model_name), map_location="cpu"))
 loss = TraininngLoss(name="m_m_m", channel_weights=tc.tensor([0.4, 0.4, 0.2]))
 optim = Adam(self.parameters(), lr=1*1e-4, betas=(0.9, 0.999))
@@ -58,7 +58,7 @@ if train_self:
     train_losses, eval_losses, preds = None, None, None
     train_losses, eval_losses, preds = train_model(dl_train, dl_test, self, loss, optim, 2,
                                                    train_losses, eval_losses)
-    print("Time elasped: {} min".format((time.time() - s) / 60))
+    print("\n Time elasped: {} min".format((time.time() - s) / 60))
 
 
 save_trained = False
@@ -79,8 +79,8 @@ if plot_results:
 
     os.makedirs("plots/{}/".format(pilot_name), exist_ok=True)
 
-    train_losses = np.fromfile("checkpoints/{}/{}_att_m4m4m2_train_losses".format(pilot_name, pilot_name))
-    eval_losses = np.fromfile("checkpoints/{}/{}_att_m4m4m2_eval_losses".format(pilot_name, pilot_name))
+    train_losses = np.fromfile("checkpoints/{}/{}{}_train_losses".format(pilot_name, pilot_name, model_name))
+    eval_losses = np.fromfile("checkpoints/{}/{}{}_eval_losses".format(pilot_name, pilot_name, model_name))
 
     fig,ax = plt.subplots(1,1)
     ax.plot(train_losses)

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import torch as tc
-from torch.nn import Module, LSTM, MultiheadAttention, Linear, Embedding, Sequential, Dropout
+from torch.nn import Module, LSTM, MultiheadAttention, Linear, Embedding, Sequential, Dropout, ReLU, Tanh
 
 
 class RNNiSLR(Module):
@@ -9,7 +9,7 @@ class RNNiSLR(Module):
     data: [seq_len, batch_size, 3], 3 corresponds to [intercept, coef, step_size]
 
     """
-    def __init__(self, in_size, num_hidden, hidden_dim, n_features=3, use_attention=False, device=None):
+    def __init__(self, in_size, num_hidden, hidden_dim, n_features=3, n_yfeatures=None, use_attention=False, device=None):
         super(RNNiSLR, self).__init__()
         if device is None and tc.cuda.is_available():
             self.device = "cuda: 2"
@@ -20,12 +20,16 @@ class RNNiSLR(Module):
         else:
             self.device = device
 
-        self.dropout_p = [0.5, 0.3] if self.training else [0,0]
+        self.dropout_p = [0.3, 0.3] if self.training else [0,0]
         self.num_hidden = num_hidden
         self.hidden_dim = hidden_dim
         self.n_features = n_features
+        self.fc_inx1 = Linear(self.n_features, in_size, device=self.device)
+        self.fc_inx2 = Linear(in_size, in_size, device=self.device)
 
-        self.fc_in = Linear(self.n_features, in_size, device=self.device)
+        if n_yfeatures is not None:
+            self.n_yfeatures = n_yfeatures
+            self.fc_iny = Linear(self.n_yfeatures, in_size, bias=False, device=self.device)
         self.lstm_enc = LSTM(input_size=in_size, hidden_size=hidden_dim, num_layers=num_hidden, dropout=self.dropout_p[1], device=self.device)
 
         self.use_attention = use_attention
@@ -46,7 +50,7 @@ class RNNiSLR(Module):
         else:
             return None
 
-    def forward(self, x, hidden=None):
+    def forward(self, x, y=None, hidden=None):
         # x: [seq_len, batch_size, 3]
         if len(x.shape) == 2:
             x = x.view(x.shape[0], 1, x.shape[1])
@@ -54,7 +58,11 @@ class RNNiSLR(Module):
         if any([hidden is None]):
             hidden = self.initialize_lstm(batch_size=batch_size)
 
-        x_in = Sequential(self.fc_in, Dropout(0.5))(x) if self.training else self.fc_in(x) # x_in: [seq_len, batch_size, in_size]
+        x_in = Sequential(self.fc_inx1, Dropout(self.dropout_p[0]), Tanh())(x) if self.training else Sequential(self.fc_inx1, Tanh())(x) # x_in: [seq_len, batch_size, in_size]
+        if y is not None:
+            y_in = Sequential(self.fc_iny, Dropout(self.dropout_p[0]), Tanh())(y) if self.training else Sequential(self.fc_iny, Tanh())(y)
+            x_in = x_in.add(y_in)
+        x_in = Sequential(self.fc_inx2, Dropout(self.dropout_p[0]), Tanh())(x_in) if self.training else Sequential(self.fc_inx2, Tanh())(x_in)
         state, (hn, cn) = self.lstm_enc(x_in, hidden) # state: [seq_len, batch_size, hidden_dim]
 
         if self.use_attention:
@@ -65,7 +73,7 @@ class RNNiSLR(Module):
 
         x_dec , _ = self.lstm_dec(state, (hn, cn)) # x_dec: [seq_len, batch_size, in_size]
         x_dec = x_dec.swapdims(1,0).mean(1) # x_dec: [batch_size, in_size]
-        out = Sequential(self.fc_out, Dropout(0.5))(x_dec) if self.training else self.fc_out(x_dec) # out: [batch_size, 3]
+        out = Sequential(self.fc_out, Dropout(self.dropout_p[0]))(x_dec) if self.training else self.fc_out(x_dec) # out: [batch_size, 3]
 
         return out
 
