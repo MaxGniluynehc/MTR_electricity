@@ -1,7 +1,5 @@
 import os
-
 import numpy as np
-
 from RNN_iSLR import RNNiSLR
 from load_data import iter_lms_KBD, iter_lms_TIS
 from data_util_fn import MTRiSLRDataset, train_test_split, fit_iterative_SLR
@@ -129,7 +127,7 @@ def eval_model(dl:tc.utils.data.DataLoader, model:RNNiSLR, loss:tc.nn.modules.lo
         assert (pred.shape[0] + xb.shape[0]) == dl.dataset.data.shape[0], AssertionError(
             "Length of prediction should match the test dataset!")
     else:
-        assert (pred.shape[0] + xb[0].shape[1]) == dl.dataset.data.shape[0], AssertionError(
+        assert (pred.shape[0] + xb[0].shape[1] -1) == dl.dataset.data.shape[0], AssertionError(
             "Length of prediction should match the test dataset!")
 
     return eval_loss/(idx+1), pred

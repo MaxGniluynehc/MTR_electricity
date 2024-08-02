@@ -3,9 +3,11 @@ import torch as tc
 from torch.utils.data import Dataset
 from sklearn.linear_model import LinearRegression
 
+
 def train_test_split(data:np.array, test_prop, seq_len):
     idx = int(data.shape[0] * test_prop)
     return data[:-idx, :], data[-idx-seq_len:,:]
+
 
 class MTRiSLRDataset(Dataset):
     def __init__(self, data, data_source, seq_len, data_incycle=None, peak_features=None):
@@ -23,12 +25,15 @@ class MTRiSLRDataset(Dataset):
             assert self.data.shape[0] == self.peak_features.shape[0], ValueError("len of peak_features has to match with data!")
 
     def __len__(self):
-        return self.data.shape[0]
+        return self.data.shape[0] - self.seq_len + 1
 
     def __getitem__(self, idx):
         if self.data_incycle is not None:
             if self.peak_features is not None:
-                return self.data[idx:(idx+self.seq_len),:], self.data_incycle[(idx+self.seq_len)-1,:], self.peak_features[idx:(idx+self.seq_len),:]
+                try:
+                    return self.data[idx:(idx+self.seq_len),:], self.data_incycle[(idx+self.seq_len)-1,:], self.peak_features[idx:(idx+self.seq_len),:]
+                except:
+                    return self.data[idx:(idx + self.seq_len), :], self.data_incycle[min((idx + self.seq_len) - 1, self.__len__()-1), :], self.peak_features[idx:(idx + self.seq_len), :]
             else:
                 return self.data[idx:(idx + self.seq_len), :], self.data_incycle[(idx + self.seq_len) - 1, :], tc.empty(self.data[idx:(idx + self.seq_len), :].size())
         else:

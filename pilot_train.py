@@ -14,7 +14,7 @@ from sklearn.preprocessing import StandardScaler
 from train_RNNiSLR import train_model, eval_model
 from loss_fn import TraininngLoss
 
-seq_len = 5
+seq_len = 48
 KBD_pilot = iter_lms_KBD[:5000,:]
 KBD_subs_pilot = iter_lms_KBD_subs[:5000,:]
 KBD_peaks_pilot = peak_features_KBD[:5000, :]
@@ -40,12 +40,13 @@ ds_train = MTRiSLRDataset(tc.tensor(KBD_train_sc, dtype=tc.float32), "KBD", seq_
 ds_test = MTRiSLRDataset(tc.tensor(KBD_test_sc, dtype=tc.float32), "KBD", seq_len,
                          data_incycle=tc.tensor(KBD_subs_test_sc, dtype=tc.float32),
                          peak_features=tc.tensor(KBD_peaks_test_sc, dtype=tc.float32))
-dl_train = DataLoader(ds_train, batch_size=15, shuffle=False, drop_last=True)
-dl_test = DataLoader(ds_test, batch_size=10, shuffle=False, drop_last=True)
+dl_train = DataLoader(ds_train, batch_size=15, shuffle=False, drop_last=False)
+dl_test = DataLoader(ds_test, batch_size=10, shuffle=False, drop_last=False)
+
 
 pilot_name = "pilot6_1"
-model_name = "_att_l4m4h2"
-continuous_training = False
+model_name = "_att_m4m4h2"
+continuous_training = True
 
 self = RNNiSLR(6, 3, 6, 3,3, True, device="cpu")
 if continuous_training:
@@ -79,8 +80,10 @@ if save_trained:
     np.array(eval_losses).tofile("checkpoints/{}/{}{}_eval_losses".format(pilot_name, pilot_name, model_name))
 
 
-plot_results=False
+plot_results=True
+save_plots=True
 if plot_results:
+    print("Generating plots ....")
     import matplotlib
     matplotlib.use("TkAgg")
     from matplotlib import pyplot as plt
@@ -91,21 +94,19 @@ if plot_results:
     train_losses = np.fromfile("checkpoints/{}/{}{}_train_losses".format(pilot_name, pilot_name, model_name))
     eval_losses = np.fromfile("checkpoints/{}/{}{}_eval_losses".format(pilot_name, pilot_name, model_name))
 
-    fig,ax = plt.subplots(1,1)
+    fig1,ax = plt.subplots(1,1)
     ax.plot(train_losses)
     # ax.vlines(300, ymax=0.34, ymin=0.24, label="{} start".format(model_name),colors="red")
     ax.set_title("Training Loss")
     # ax.legend()
-    fig.show()
-    fig.savefig("plots/{}/{}_training_loss".format(pilot_name, pilot_name))
+    fig1.show()
 
-    fig,ax=plt.subplots()
+    fig2,ax=plt.subplots()
     ax.plot(eval_losses)
     # ax.vlines(300, ymax=0.34, ymin=0.24, label="{} start".format(model_name),colors="red")
     ax.set_title("Evaluation Loss")
     # ax.legend()
-    fig.show()
-    fig.savefig("plots/{}/{}_eval_loss".format(pilot_name, pilot_name))
+    fig2.show()
 
     _, x_preds_sc = eval_model(dl_test, self, loss)
     # x_preds_sc.shape
@@ -121,38 +122,48 @@ if plot_results:
     # ax[1].legend()
     # fig.show()
 
-    fig,ax = plt.subplots(1,1)
+    fig3,ax = plt.subplots(1,1)
     ax.plot(KBD_test_toplot, label="target")
     ax.plot(x_preds_toplot, label="pred")
     ax.legend()
     ax.set_title("Aggregated")
-    fig.show()
-    fig.savefig("plots/{}/{}_aggregated".format(pilot_name, pilot_name))
+    fig3.show()
 
-    fig,ax = plt.subplots(1,1)
+    fig4,ax = plt.subplots(1,1)
     ax.plot(KBD_test[5:,1], label="target")
     ax.plot(x_preds[:,1], label="pred")
     ax.legend()
     ax.set_title("Slope")
-    fig.show()
-    fig.savefig("plots/{}/{}_slope".format(pilot_name,pilot_name))
+    fig4.show()
 
-    fig,ax = plt.subplots(1,1)
+    fig5,ax = plt.subplots(1,1)
     ax.plot(KBD_test[5:,0], label="target")
     ax.plot(x_preds[:,0], label="pred")
     ax.legend()
     ax.set_title("Intercept")
-    fig.show()
-    fig.savefig("plots/{}/{}_intercept".format(pilot_name,pilot_name))
+    fig5.show()
 
-    fig,ax = plt.subplots(1,1)
+    fig6,ax = plt.subplots(1,1)
     ax.plot(KBD_test[5:,2], label="target")
     ax.plot(x_preds[:,2], label="pred")
     ax.legend()
     ax.set_ylim([150,190])
     ax.set_title("Step Size")
-    fig.show()
-    fig.savefig("plots/{}/{}_stepsize".format(pilot_name, pilot_name))
+    fig6.show()
+
+    if save_plots:
+        fig1.savefig("plots/{}/{}{}_training_loss".format(pilot_name, pilot_name, model_name))
+        fig2.savefig("plots/{}/{}{}_eval_loss".format(pilot_name, pilot_name, model_name))
+        fig3.savefig("plots/{}/{}{}_aggregated".format(pilot_name, pilot_name, model_name))
+        fig4.savefig("plots/{}/{}{}_slope".format(pilot_name, pilot_name, model_name))
+        fig5.savefig("plots/{}/{}{}_intercept".format(pilot_name, pilot_name, model_name))
+        fig6.savefig("plots/{}/{}{}_stepsize".format(pilot_name, pilot_name, model_name))
+
+    del fig1, fig2, fig3, fig4, fig5, fig6, ax
+
+
+
+
 
 
 
