@@ -23,7 +23,7 @@
      - x_in = fc_inx1(x) + fc_iny1(y)
      - output = (fc_x2, lstm_enc, att, lstm_dec)(x_in)
   
-- `pilot6-1`:  also take 3 more **peak features** [on_peak, idle, hour], but are not concatenated. The inputs are
+- `pilot6-1`: also take 3 more **peak features** [on_peak, idle, hour], but are not concatenated. The inputs are
   (x,y), where x_dim = ydim = [4, batch_size, 3]. x and y are separately passed through Linear layers, then y
   is mapped to a [4, batch_size, 1] tensor and multiplicated the last dimension (to [4, batch_size, in_size]) before 
   adding back to x to get x_in, with dim [4, batch_size, in_size], then passed through (Linear, lstm_enc, 
@@ -31,6 +31,8 @@
      - x_in = fc_inx1(x) + (fc_iny1, fc_iny2)(y).repeat([1,1,in_size])    # x_in: [4, batch_size, in_size]
      - output = (fc_x2, lstm_enc, att, lstm_dec)(x_in)
   The loss function is ["l1", "mse", "huber].
+
+- `pilot7`: same as `pilot6_1` but seq_len = 48. 
 
 
 
