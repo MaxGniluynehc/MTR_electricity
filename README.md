@@ -23,7 +23,7 @@
      - x_in = fc_inx1(x) + fc_iny1(y)
      - output = (fc_x2, lstm_enc, att, lstm_dec)(x_in)
   
-- `pilot6-1`: also take 3 more **peak features** [on_peak, idle, hour], but are not concatenated. The inputs are
+- `pilot6_1`: also take 3 more **peak features** [on_peak, idle, hour], but are not concatenated. The inputs are
   (x,y), where x_dim = ydim = [4, batch_size, 3]. x and y are separately passed through Linear layers, then y
   is mapped to a [4, batch_size, 1] tensor and multiplicated the last dimension (to [4, batch_size, in_size]) before 
   adding back to x to get x_in, with dim [4, batch_size, in_size], then passed through (Linear, lstm_enc, 
@@ -43,4 +43,10 @@
 | `pilot6_3` | `_att_l4l4h2` |    12.94%    |         3.18%         |        51.19%         |
 |  `pilot7`  | `_att_l4m4h2` |    13.06%    |         3.47%         |        50.85%         |
 
-
+* `model_name` stands for the structure of network and loss functions we used for each key features: [intercept, 
+  slope, step_size]. 
+  * "_att" means a multihead attention layer is included;
+  * "l", "m", "h" stand for the l1_loss, mse_loss and huber_loss, respectively;
+  * "_l4m4h2" means we are using the l1_loss for the first channel (intercept), mse_loss for the second channel 
+  (slope) and huber_loss for the third channel (step_size), and the total loss is a weighted sum of the loss from 
+  the three channels, with weights (0.4, 0.4, 0.2). 
