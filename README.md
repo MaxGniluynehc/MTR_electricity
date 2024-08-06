@@ -35,7 +35,12 @@
 - `pilot7`: same as `pilot6_1` but seq_len = 48. 
 
 
-
-
+## Pilot Evaluation Results
+| pilot_name | model_name    | avg_abs_diff | avg_abs_diff (>25mVA) | avg_abs_diff (<15mVA) | 
+|:----------:|---------------|:------------:|:---------------------:|:---------------------:|
+| `pilot6_1` | `_att_l4m4h2` |    12.96%    |         3.56%         |        51.93%         |
+| `pilot6_2` | `_att_m4m4h2` |    13.28%    |         3.90%         |        52.43%         |
+| `pilot6_3` | `_att_l4l4h2` |    12.94%    |         3.18%         |        51.19%         |
+|  `pilot7`  | `_att_l4m4h2` |    13.06%    |         3.47%         |        50.85%         |
 
 
