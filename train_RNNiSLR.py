@@ -68,7 +68,12 @@ def train_one_epoch(dl:tc.utils.data.DataLoader, model:RNNiSLR, loss:tc.nn.modul
     return loss_in_epoch/(idx+1)
 
 
-def eval_model(dl:tc.utils.data.DataLoader, model:RNNiSLR, loss:tc.nn.modules.loss):
+def eval_model(dl:tc.utils.data.DataLoader, model:RNNiSLR, loss:tc.nn.modules.loss, pred_at_incycle_step=None):
+    """
+    :param pred_at_incycle_step: If using historical signal up to a particular incycle step to make the prediction, then
+    set this as an integer between 0 to num_subintervals. If not specified, output the average of predictions at all
+    incycle steps.
+    """
     eval_loss = 0
     model.train(False)
     pred = tc.tensor([], device=model.device)
@@ -107,18 +112,20 @@ def eval_model(dl:tc.utils.data.DataLoader, model:RNNiSLR, loss:tc.nn.modules.lo
                     # print("xbb[:,:-1,:].shape=", xbb[:, :-1, :].shape)
                     # print("xb_sub slice shape=", xb_sub[:,(sb-1)*num_subintervals:(sb-1)*num_subintervals+3].view(-1,1,3).shape)
                     input_b = tc.concatenate([xbb[:, :-1, :],
-                                              xb_sub[:,(sb-1)*num_subintervals:(sb-1)*num_subintervals+3].view(-1,1,3)], dim=1)
+                                              xb_sub[:, (sb-1)*num_subintervals:(sb-1)*num_subintervals+3].view(-1,1,3)], dim=1)
                 else:
-                    input_b = xbb # input_b: [batch_size, seq_len, 3]
-
+                    input_b = xbb  # input_b: [batch_size, seq_len, 3]
                 # if dl.dataset.peak_features is not None:
-                #     input_b = tc.concatenate([input_b, xb_peak], dim=-1) # input_b: [batch_size, seq_len, 3+num_peak_features]
+                # input_b = tc.concatenate([input_b, xb_peak], dim=-1) # input_b: [batch_size, seq_len, 3+num_peak_features]
                 xb_pred = model.forward(x=input_b.swapdims(1,0), y=xb_peak.swapdims(1,0))
                 xb_preds[sb,:,:] = xb_pred
                 lb_sub = loss(xb_pred, xb_tgt)
                 lb += lb_sub
             lb = lb/Nsubbatches
-            x_preds = xb_preds[:-1,:,:].mean(dim=0)
+            if pred_at_incycle_step is not None:
+                x_preds = xb_preds[pred_at_incycle_step,:,:]
+            else:
+                x_preds = xb_preds[:-1, :, :].mean(dim=0)
             pred = tc.concatenate([pred, x_preds.detach().to(model.device)])
 
         eval_loss += lb.detach().item()
